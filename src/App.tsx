@@ -162,7 +162,10 @@ function App() {
         {/* Header */}
         <Header coords={coords} pressedKeys={pressedKeys} />
         {/* Proximity Action */}
-        <ProximityAction activeZone={activeZone} />
+        <ProximityAction
+          activeZone={activeZone}
+          onOpen={() => activeZone && setOpenModal(activeZone)}
+        />
         {/* Mobile Controls */}
         <MobileControl handleMobileInput={handleMobileInput} />
       </div>

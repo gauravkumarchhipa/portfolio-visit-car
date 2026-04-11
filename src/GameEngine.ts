@@ -5,8 +5,22 @@ import type {
   LabelsRefs,
   MovementKey,
   PressedKeys,
+  Transform,
   ZoneId,
 } from './types';
+
+type BuildingAABB = {
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
+};
+
+const CAR_HALF_W = 0.9;
+const CAR_HALF_D = 1.7;
+const COLLISION_COOLDOWN_MS = 300;
+/** Drivable area is a square centered on the spawn. Keep in sync with WORLD_RADIUS in types.ts. */
+const WORLD_BOUNDARY = 80;
 
 type Zone = {
   id: ZoneId;
@@ -67,6 +81,8 @@ export class GameEngine {
 
   private animationId: number | null = null;
   private lastCoords: { x: number | null; z: number | null } = { x: null, z: null };
+  private buildings: BuildingAABB[] = [];
+  private lastCollisionAt = 0;
 
   constructor(container: HTMLElement, labelsRefs: LabelsRefs, callbacks: GameEngineCallbacks) {
     this.container = container;
@@ -170,6 +186,13 @@ export class GameEngine {
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       cityGroup.add(mesh);
+
+      this.buildings.push({
+        minX: gridX - w / 2,
+        maxX: gridX + w / 2,
+        minZ: gridZ - d / 2,
+        maxZ: gridZ + d / 2,
+      });
 
       if (Math.random() > 0.5) {
         const win = new THREE.Mesh(
@@ -343,6 +366,45 @@ export class GameEngine {
     }
   }
 
+  public getTransform(): Transform {
+    if (!this.carGroup) return { x: 0, z: 0, angle: Math.PI };
+    return {
+      x: this.carGroup.position.x,
+      z: this.carGroup.position.z,
+      angle: this.state.angle,
+    };
+  }
+
+  private collidesAt(x: number, z: number): boolean {
+    // World boundary: treat the edge of the drivable area as a solid wall.
+    if (
+      x - CAR_HALF_W < -WORLD_BOUNDARY ||
+      x + CAR_HALF_W > WORLD_BOUNDARY ||
+      z - CAR_HALF_D < -WORLD_BOUNDARY ||
+      z + CAR_HALF_D > WORLD_BOUNDARY
+    ) {
+      return true;
+    }
+
+    const minX = x - CAR_HALF_W;
+    const maxX = x + CAR_HALF_W;
+    const minZ = z - CAR_HALF_D;
+    const maxZ = z + CAR_HALF_D;
+    for (const b of this.buildings) {
+      if (maxX > b.minX && minX < b.maxX && maxZ > b.minZ && minZ < b.maxZ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private triggerCollision(impact: number): void {
+    const now = performance.now();
+    if (now - this.lastCollisionAt < COLLISION_COOLDOWN_MS) return;
+    this.lastCollisionAt = now;
+    this.callbacks.onCollision?.(impact);
+  }
+
   public handleInput(key: MovementKey, isPressed: boolean): void {
     if (this.state.modalOpen) return;
     if (key in this.state.keys) {
@@ -405,8 +467,27 @@ export class GameEngine {
       }
 
       this.carGroup.rotation.y = this.state.angle;
-      this.carGroup.position.x -= Math.sin(this.state.angle) * this.state.speed;
-      this.carGroup.position.z -= Math.cos(this.state.angle) * this.state.speed;
+
+      const dx = -Math.sin(this.state.angle) * this.state.speed;
+      const dz = -Math.cos(this.state.angle) * this.state.speed;
+      const prevSpeed = this.state.speed;
+
+      // Axis-wise movement so the car slides along walls instead of sticking.
+      const tryX = this.carGroup.position.x + dx;
+      if (!this.collidesAt(tryX, this.carGroup.position.z)) {
+        this.carGroup.position.x = tryX;
+      } else {
+        this.triggerCollision(Math.abs(prevSpeed));
+        this.state.speed = -prevSpeed * 0.25;
+      }
+
+      const tryZ = this.carGroup.position.z + dz;
+      if (!this.collidesAt(this.carGroup.position.x, tryZ)) {
+        this.carGroup.position.z = tryZ;
+      } else {
+        this.triggerCollision(Math.abs(prevSpeed));
+        this.state.speed = -this.state.speed * 0.25;
+      }
 
       const idealOffset = new THREE.Vector3(0, 5, 10);
       idealOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.state.angle);

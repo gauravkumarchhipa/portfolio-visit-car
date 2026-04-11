@@ -15,6 +15,8 @@ import Header from './components/Header';
 import Labels from './components/map/Labels';
 import MobileControl from './components/MobileControl';
 import ProximityAction from './components/ProximityAction';
+import Minimap from './components/Minimap';
+import CrashOverlay from './components/CrashOverlay';
 
 if (typeof window !== 'undefined') {
   void import('iconify-icon');
@@ -39,6 +41,7 @@ function App() {
     s: false,
     d: false,
   });
+  const [crashKey, setCrashKey] = useState(0);
 
   const labelsRefs = useRef<LabelsMap>({
     about: null,
@@ -52,6 +55,16 @@ function App() {
     engineRef.current = new GameEngine(containerRef.current, labelsRefs, {
       onCoordsUpdate: (x, z) => setCoords({ x, z }),
       onZoneChange: (zone) => setActiveZone(zone),
+      onCollision: () => {
+        setCrashKey((k) => k + 1);
+        const canvas = containerRef.current;
+        if (canvas) {
+          canvas.classList.remove('shake');
+          // Force reflow so the animation can restart on repeated hits.
+          void canvas.offsetWidth;
+          canvas.classList.add('shake');
+        }
+      },
     });
 
     return () => {
@@ -118,6 +131,10 @@ function App() {
       <div ref={containerRef} id="canvas-container" className="relative z-0"></div>
       {/* LABELS */}
       <Labels labelsRefs={labelsRefs} />
+      {/* MINIMAP */}
+      <Minimap engineRef={engineRef} activeZone={activeZone} />
+      {/* CRASH OVERLAY */}
+      <CrashOverlay crashKey={crashKey} />
       {/* MODALS */}
       <Modal openModal={openModal} setOpenModal={setOpenModal} />
     </>

@@ -90,6 +90,9 @@ function App() {
       if (e.key === 'Enter' && activeZone) {
         setOpenModal(activeZone);
       }
+      if (k === 'h') {
+        engineRef.current?.honk();
+      }
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {

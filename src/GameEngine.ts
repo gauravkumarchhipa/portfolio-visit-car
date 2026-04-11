@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { AudioEngine } from './AudioEngine';
 import type {
   Coords,
   GameEngineCallbacks,
@@ -83,6 +84,8 @@ export class GameEngine {
   private lastCoords: { x: number | null; z: number | null } = { x: null, z: null };
   private buildings: BuildingAABB[] = [];
   private lastCollisionAt = 0;
+  private audio = new AudioEngine();
+  private lastBrakeAt = 0;
 
   constructor(container: HTMLElement, labelsRefs: LabelsRefs, callbacks: GameEngineCallbacks) {
     this.container = container;
@@ -402,13 +405,40 @@ export class GameEngine {
     const now = performance.now();
     if (now - this.lastCollisionAt < COLLISION_COOLDOWN_MS) return;
     this.lastCollisionAt = now;
+    this.audio.crash(Math.min(1, impact / this.MAX_SPEED));
     this.callbacks.onCollision?.(impact);
+  }
+
+  public honk(): void {
+    this.audio.ensureStarted();
+    this.audio.honk();
+  }
+
+  public setMuted(muted: boolean): void {
+    this.audio.setMuted(muted);
+  }
+
+  public isMuted(): boolean {
+    return this.audio.isMuted();
   }
 
   public handleInput(key: MovementKey, isPressed: boolean): void {
     if (this.state.modalOpen) return;
-    if (key in this.state.keys) {
-      this.state.keys[key] = isPressed;
+    if (!(key in this.state.keys)) return;
+
+    // First user gesture — kick off the AudioContext (browser autoplay policy).
+    if (isPressed) this.audio.ensureStarted();
+
+    const wasPressed = this.state.keys[key];
+    this.state.keys[key] = isPressed;
+
+    // Brake sound: press S while moving forward fast enough, throttled.
+    if (key === 's' && isPressed && !wasPressed && this.state.speed > 0.2) {
+      const now = performance.now();
+      if (now - this.lastBrakeAt > 400) {
+        this.lastBrakeAt = now;
+        this.audio.brake(Math.min(1, this.state.speed / this.MAX_SPEED));
+      }
     }
   }
 
@@ -523,6 +553,8 @@ export class GameEngine {
       this.callbacks.onCoordsUpdate(currentX, currentZ);
     }
 
+    this.audio.setSpeed(this.state.speed, this.MAX_SPEED);
+
     this.updateLabels();
     this.renderer.render(this.scene, this.camera);
   };
@@ -532,6 +564,7 @@ export class GameEngine {
       cancelAnimationFrame(this.animationId);
     }
     window.removeEventListener('resize', this.onWindowResize);
+    this.audio.cleanup();
 
     if (
       this.renderer &&

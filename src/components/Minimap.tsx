@@ -28,10 +28,8 @@ const SIZE_LABEL: Record<MapSize, string> = {
   lg: 'L',
 };
 
-function pickInitialSize(): MapSize {
-  if (typeof window === 'undefined') return 'md';
-  return window.matchMedia('(min-width: 768px)').matches ? 'lg' : 'sm';
-}
+/** Stable value used on both server and first client render to avoid hydration mismatch. */
+const SSR_SIZE: MapSize = 'md';
 
 /** World (x or z in [-WORLD_RADIUS..WORLD_RADIUS]) -> minimap pixel space. */
 function worldToMap(v: number): number {
@@ -42,8 +40,15 @@ function worldToMap(v: number): number {
 const Minimap: React.FC<MinimapProps> = ({ engineRef, activeZone }) => {
   const carRef = useRef<SVGGElement | null>(null);
   const headingLabelRef = useRef<HTMLSpanElement | null>(null);
-  const [mapSize, setMapSize] = useState<MapSize>(pickInitialSize);
+  const [mapSize, setMapSize] = useState<MapSize>(SSR_SIZE);
   const [collapsed, setCollapsed] = useState(false);
+
+  // After mount, snap to the responsive default (sm on mobile, lg on desktop).
+  // Done in an effect so the first render matches the server HTML.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setMapSize(window.matchMedia('(min-width: 768px)').matches ? 'lg' : 'sm');
+  }, []);
 
   useEffect(() => {
     let frame = 0;

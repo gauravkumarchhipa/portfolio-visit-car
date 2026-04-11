@@ -4,12 +4,14 @@ import React, { useEffect, useRef, useState } from 'react';
 import { GameEngine } from './GameEngine';
 import type {
   CameraMode,
+  CarModelId,
   Coords,
   LabelsMap,
   LightMode,
   ModalId,
   MovementKey,
   PressedKeys,
+  ThemeId,
   ZoneId,
 } from './types';
 import { CAMERA_MODE_LABEL, LIGHT_MODE_LABEL } from './types';
@@ -21,6 +23,7 @@ import ProximityAction from './components/ProximityAction';
 import Minimap from './components/Minimap';
 import CrashOverlay from './components/CrashOverlay';
 import HelpModal from './components/HelpModal';
+import SettingsModal from './components/SettingsModal';
 
 if (typeof window !== 'undefined') {
   void import('iconify-icon');
@@ -49,6 +52,10 @@ function App() {
   const [cameraMode, setCameraMode] = useState<CameraMode>('chase');
   const [lightMode, setLightMode] = useState<LightMode>('low');
   const [showHelp, setShowHelp] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [carModel, setCarModel] = useState<CarModelId>('sedan');
+  const [carColor, setCarColor] = useState<number>(0x18181b);
+  const [theme, setTheme] = useState<ThemeId>('night');
 
   const labelsRefs = useRef<LabelsMap>({
     about: null,
@@ -74,6 +81,9 @@ function App() {
       },
       onCameraModeChange: (mode) => setCameraMode(mode),
       onLightModeChange: (mode) => setLightMode(mode),
+      onCarModelChange: (id) => setCarModel(id),
+      onCarColorChange: (hex) => setCarColor(hex),
+      onThemeChange: (id) => setTheme(id),
     });
 
     return () => {
@@ -87,6 +97,10 @@ function App() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (showSettings) {
+        if (e.key === 'Escape') setShowSettings(false);
+        return;
+      }
       if (showHelp) {
         if (e.key === 'Escape') setShowHelp(false);
         return;
@@ -132,7 +146,7 @@ function App() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [openModal, activeZone, showHelp]);
+  }, [openModal, activeZone, showHelp, showSettings]);
 
   const handleMobileInput =
     (key: MovementKey, isPressed: boolean) =>
@@ -253,6 +267,24 @@ function App() {
               HELP
             </span>
           </button>
+
+          {/* Settings */}
+          <button
+            type="button"
+            onClick={() => setShowSettings(true)}
+            className="group flex items-center gap-1.5 px-2 py-1.5 rounded-full border border-white/10 bg-zinc-800/70 hover:bg-zinc-800 hover:border-pink-400/40 transition-colors"
+            title="Customize car & theme"
+            aria-label="Open settings"
+          >
+            <iconify-icon
+              icon="lucide:settings-2"
+              width="14"
+              class="text-pink-400"
+            ></iconify-icon>
+            <span className="hidden md:inline text-[10px] font-mono font-semibold text-pink-400 tracking-wider">
+              CUSTOMIZE
+            </span>
+          </button>
         </div>
       </div>
 
@@ -268,6 +300,17 @@ function App() {
       <Modal openModal={openModal} setOpenModal={setOpenModal} />
       {/* HELP MODAL */}
       <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
+      {/* SETTINGS MODAL */}
+      <SettingsModal
+        open={showSettings}
+        onClose={() => setShowSettings(false)}
+        carModel={carModel}
+        carColor={carColor}
+        theme={theme}
+        onCarModel={(id) => engineRef.current?.setCarModel(id)}
+        onCarColor={(hex) => engineRef.current?.setCarColor(hex)}
+        onTheme={(id) => engineRef.current?.setTheme(id)}
+      />
     </>
   );
 }

@@ -2,16 +2,27 @@ import * as THREE from 'three';
 import { AudioEngine } from './AudioEngine';
 import type {
   CameraMode,
+  CarModelId,
   Coords,
   GameEngineCallbacks,
   LabelsRefs,
   LightMode,
   MovementKey,
   PressedKeys,
+  ThemeId,
   Transform,
   ZoneId,
 } from './types';
 import { CAMERA_MODES, LIGHT_MODES } from './types';
+import { buildCar } from './carModels';
+import { THEME_MAP, type ThemeConfig } from './themes';
+import {
+  buildDecorations,
+  createSkyDome,
+  disposeGroup,
+  updateSkyDome,
+  type DecorationTick,
+} from './sceneDecor';
 
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
@@ -97,6 +108,19 @@ export class GameEngine {
   private headlightMeshR!: THREE.Mesh;
   private cameraMode: CameraMode = 'chase';
   private lightMode: LightMode = 'low';
+  private chassisMat!: THREE.MeshStandardMaterial;
+  private currentCarModel: CarModelId = 'sedan';
+  private currentCarColor = 0x18181b;
+  private currentTheme: ThemeId = 'night';
+  private groundMesh!: THREE.Mesh;
+  private groundMat!: THREE.MeshStandardMaterial;
+  private hemiLight!: THREE.HemisphereLight;
+  private dirLight!: THREE.DirectionalLight;
+  private buildingMeshes: THREE.Mesh[] = [];
+  private skyDome!: THREE.Mesh;
+  private decorationsGroup: THREE.Group | null = null;
+  private decorationsTick: DecorationTick | null = null;
+  private lastFrameTs = 0;
 
   constructor(container: HTMLElement, labelsRefs: LabelsRefs, callbacks: GameEngineCallbacks) {
     this.container = container;
@@ -133,27 +157,50 @@ export class GameEngine {
     this.setupCar();
     this.setupZones();
 
+    // Sky dome + initial theme decorations.
+    const initialTheme = THEME_MAP[this.currentTheme];
+    this.skyDome = createSkyDome(initialTheme.skyTop, initialTheme.skyBottom);
+    this.scene.add(this.skyDome);
+    this.spawnThemeDecorations(initialTheme);
+
     window.addEventListener('resize', this.onWindowResize);
 
     this.animate();
   }
 
-  private setupLighting(): void {
-    const ambientLight = new THREE.HemisphereLight(0xffffff, 0x09090b, 0.4);
-    this.scene.add(ambientLight);
+  private spawnThemeDecorations(theme: ThemeConfig): void {
+    // Tear down old decorations
+    if (this.decorationsGroup) {
+      this.scene.remove(this.decorationsGroup);
+      disposeGroup(this.decorationsGroup);
+      this.decorationsGroup = null;
+    }
+    this.decorationsTick = null;
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-    dirLight.position.set(50, 100, 50);
-    dirLight.castShadow = true;
-    dirLight.shadow.mapSize.width = 2048;
-    dirLight.shadow.mapSize.height = 2048;
-    dirLight.shadow.camera.near = 0.5;
-    dirLight.shadow.camera.far = 200;
-    dirLight.shadow.camera.left = -100;
-    dirLight.shadow.camera.right = 100;
-    dirLight.shadow.camera.top = 100;
-    dirLight.shadow.camera.bottom = -100;
-    this.scene.add(dirLight);
+    const { group, tick } = buildDecorations(theme.decoration, (x, z) =>
+      this.isSafeZone(x, z)
+    );
+    this.decorationsGroup = group;
+    this.decorationsTick = tick ?? null;
+    this.scene.add(group);
+  }
+
+  private setupLighting(): void {
+    this.hemiLight = new THREE.HemisphereLight(0xffffff, 0x09090b, 0.4);
+    this.scene.add(this.hemiLight);
+
+    this.dirLight = new THREE.DirectionalLight(0xffffff, 1);
+    this.dirLight.position.set(50, 100, 50);
+    this.dirLight.castShadow = true;
+    this.dirLight.shadow.mapSize.width = 2048;
+    this.dirLight.shadow.mapSize.height = 2048;
+    this.dirLight.shadow.camera.near = 0.5;
+    this.dirLight.shadow.camera.far = 200;
+    this.dirLight.shadow.camera.left = -100;
+    this.dirLight.shadow.camera.right = 100;
+    this.dirLight.shadow.camera.top = 100;
+    this.dirLight.shadow.camera.bottom = -100;
+    this.scene.add(this.dirLight);
   }
 
   private isSafeZone(x: number, z: number): boolean {
@@ -165,15 +212,15 @@ export class GameEngine {
 
   private setupCity(): void {
     const planeGeometry = new THREE.PlaneGeometry(500, 500);
-    const planeMaterial = new THREE.MeshStandardMaterial({
+    this.groundMat = new THREE.MeshStandardMaterial({
       color: 0x18181b,
       roughness: 0.9,
       metalness: 0.1,
     });
-    const plane = new THREE.Mesh(planeGeometry, planeMaterial);
-    plane.rotation.x = -Math.PI / 2;
-    plane.receiveShadow = true;
-    this.scene.add(plane);
+    this.groundMesh = new THREE.Mesh(planeGeometry, this.groundMat);
+    this.groundMesh.rotation.x = -Math.PI / 2;
+    this.groundMesh.receiveShadow = true;
+    this.scene.add(this.groundMesh);
 
     const cityGroup = new THREE.Group();
     this.scene.add(cityGroup);
@@ -200,6 +247,7 @@ export class GameEngine {
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       cityGroup.add(mesh);
+      this.buildingMeshes.push(mesh);
 
       this.buildings.push({
         minX: gridX - w / 2,
@@ -275,77 +323,119 @@ export class GameEngine {
   }
 
   private setupCar(): void {
-    this.carGroup = new THREE.Group();
+    this.instantiateCar();
+  }
 
-    const chassisGeo = new THREE.BoxGeometry(1.6, 0.6, 3.2);
-    const chassisMat = new THREE.MeshStandardMaterial({
-      color: 0x18181b,
-      roughness: 0.2,
-      metalness: 0.7,
-    });
-    const carChassis = new THREE.Mesh(chassisGeo, chassisMat);
-    carChassis.position.y = 0.6;
-    carChassis.castShadow = true;
-    this.carGroup.add(carChassis);
-
-    const cabinGeo = new THREE.BoxGeometry(1.4, 0.5, 1.8);
-    const cabinMat = new THREE.MeshStandardMaterial({
-      color: 0x09090b,
-      roughness: 0.1,
-      metalness: 0.9,
-    });
-    const cabin = new THREE.Mesh(cabinGeo, cabinMat);
-    cabin.position.set(0, 1.1, -0.2);
-    this.carGroup.add(cabin);
-
-    const stripGeo = new THREE.BoxGeometry(1.4, 0.05, 0.05);
-    const stripMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
-    const rearStrip = new THREE.Mesh(stripGeo, stripMat);
-    rearStrip.position.set(0, 0.7, 1.61);
-    this.carGroup.add(rearStrip);
-
-    const hlGeo = new THREE.BoxGeometry(0.4, 0.1, 0.05);
-    const hlMat = new THREE.MeshBasicMaterial({ color: 0xbfdbfe });
-    const hlLeft = new THREE.Mesh(hlGeo, hlMat);
-    hlLeft.position.set(-0.5, 0.6, -1.61);
-    const hlRight = new THREE.Mesh(hlGeo, hlMat);
-    hlRight.position.set(0.5, 0.6, -1.61);
-    this.carGroup.add(hlLeft);
-    this.carGroup.add(hlRight);
-    this.headlightMeshL = hlLeft;
-    this.headlightMeshR = hlRight;
-
-    const carSpotL = new THREE.SpotLight(0xbfdbfe, 3, 30, 0.5, 0.5, 1);
-    carSpotL.position.set(-0.5, 0.6, -1.5);
-    carSpotL.target.position.set(-0.5, 0, -10);
-    this.carGroup.add(carSpotL);
-    this.carGroup.add(carSpotL.target);
-
-    const carSpotR = new THREE.SpotLight(0xbfdbfe, 3, 30, 0.5, 0.5, 1);
-    carSpotR.position.set(0.5, 0.6, -1.5);
-    carSpotR.target.position.set(0.5, 0, -10);
-    this.carGroup.add(carSpotR);
-    this.carGroup.add(carSpotR.target);
-
-    this.carSpotL = carSpotL;
-    this.carSpotR = carSpotR;
-    this.applyLightMode();
-
-    const wheelGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.3, 16);
-    const wheelMat = new THREE.MeshStandardMaterial({ color: 0x09090b });
-    wheelGeo.rotateZ(Math.PI / 2);
-
-    const w1 = new THREE.Mesh(wheelGeo, wheelMat);
-    w1.position.set(0.8, 0.35, 1);
-    const w2 = new THREE.Mesh(wheelGeo, wheelMat);
-    w2.position.set(-0.8, 0.35, 1);
-    const w3 = new THREE.Mesh(wheelGeo, wheelMat);
-    w3.position.set(0.8, 0.35, -1);
-    const w4 = new THREE.Mesh(wheelGeo, wheelMat);
-    w4.position.set(-0.8, 0.35, -1);
-    this.carGroup.add(w1, w2, w3, w4);
-
+  /**
+   * Build the car group from the current model + color, add to scene and
+   * wire up the headlight / spot-light refs. Used both during init and when
+   * the player changes the car model at runtime.
+   */
+  private instantiateCar(): void {
+    const result = buildCar(this.currentCarModel, this.currentCarColor);
+    this.carGroup = result.group;
+    this.chassisMat = result.chassisMat;
+    this.headlightMeshL = result.headlightMeshL;
+    this.headlightMeshR = result.headlightMeshR;
+    this.carSpotL = result.spotL;
+    this.carSpotR = result.spotR;
     this.scene.add(this.carGroup);
+    this.applyLightMode();
+  }
+
+  // ─── Settings (car model / color / theme) ─────────────────────────────
+
+  public setCarModel(id: CarModelId): void {
+    if (id === this.currentCarModel) return;
+    // Preserve position + heading across model swap.
+    const prevPos = this.carGroup.position.clone();
+    const prevRot = this.carGroup.rotation.y;
+
+    this.scene.remove(this.carGroup);
+    this.disposeCarGroup(this.carGroup);
+
+    this.currentCarModel = id;
+    this.instantiateCar();
+
+    this.carGroup.position.copy(prevPos);
+    this.carGroup.rotation.y = prevRot;
+
+    this.callbacks.onCarModelChange?.(id);
+  }
+
+  public setCarColor(hex: number): void {
+    this.currentCarColor = hex;
+    if (this.chassisMat) this.chassisMat.color.set(hex);
+    this.callbacks.onCarColorChange?.(hex);
+  }
+
+  public setTheme(id: ThemeId): void {
+    const theme = THEME_MAP[id];
+    if (!theme) return;
+    this.currentTheme = id;
+    this.applyTheme(theme);
+    this.callbacks.onThemeChange?.(id);
+  }
+
+  public getCarModel(): CarModelId {
+    return this.currentCarModel;
+  }
+
+  public getCarColor(): number {
+    return this.currentCarColor;
+  }
+
+  public getTheme(): ThemeId {
+    return this.currentTheme;
+  }
+
+  private applyTheme(theme: ThemeConfig): void {
+    const bg = new THREE.Color(theme.background);
+    this.scene.background = bg;
+
+    const fogColor = new THREE.Color(theme.fogColor);
+    if (this.scene.fog && this.scene.fog instanceof THREE.Fog) {
+      this.scene.fog.color.copy(fogColor);
+      this.scene.fog.near = theme.fogNear;
+      this.scene.fog.far = theme.fogFar;
+    } else {
+      this.scene.fog = new THREE.Fog(fogColor, theme.fogNear, theme.fogFar);
+    }
+
+    if (this.groundMat) this.groundMat.color.set(theme.ground);
+    if (this.hemiLight) {
+      this.hemiLight.color.set(theme.hemiSky);
+      this.hemiLight.groundColor.set(theme.hemiGround);
+      this.hemiLight.intensity = theme.hemiIntensity;
+    }
+    if (this.dirLight) {
+      this.dirLight.color.set(theme.dirColor);
+      this.dirLight.intensity = theme.dirIntensity;
+    }
+
+    // Recolor all building materials.
+    for (const mesh of this.buildingMeshes) {
+      const mat = mesh.material as THREE.MeshStandardMaterial;
+      if (mat && 'color' in mat) mat.color.set(theme.buildingColor);
+    }
+
+    // Sky gradient + 3D decorations (sun, stars, palms, snow, etc.)
+    if (this.skyDome) updateSkyDome(this.skyDome, theme.skyTop, theme.skyBottom);
+    this.spawnThemeDecorations(theme);
+  }
+
+  private disposeCarGroup(group: THREE.Group): void {
+    group.traverse((obj) => {
+      const mesh = obj as THREE.Mesh;
+      if (mesh.geometry) mesh.geometry.dispose();
+      if (mesh.material) {
+        if (Array.isArray(mesh.material)) {
+          mesh.material.forEach((m) => m.dispose());
+        } else {
+          mesh.material.dispose();
+        }
+      }
+    });
   }
 
   private setupZones(): void {
@@ -705,6 +795,14 @@ export class GameEngine {
 
     this.audio.setSpeed(this.state.speed, this.MAX_SPEED);
 
+    // Tick animated decorations (snow, neon flicker, etc.)
+    if (this.decorationsTick) {
+      const now = performance.now();
+      const dt = this.lastFrameTs ? (now - this.lastFrameTs) / 1000 : 0.016;
+      this.lastFrameTs = now;
+      this.decorationsTick(Math.min(dt, 0.05));
+    }
+
     this.updateLabels();
     this.renderer.render(this.scene, this.camera);
   };
@@ -715,6 +813,12 @@ export class GameEngine {
     }
     window.removeEventListener('resize', this.onWindowResize);
     this.audio.cleanup();
+
+    if (this.decorationsGroup) {
+      this.scene.remove(this.decorationsGroup);
+      disposeGroup(this.decorationsGroup);
+      this.decorationsGroup = null;
+    }
 
     if (
       this.renderer &&

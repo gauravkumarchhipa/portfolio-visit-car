@@ -36,12 +36,21 @@ export const LIGHT_MODE_LABEL: Record<LightMode, string> = {
   hazard: 'HAZARD',
 };
 
+import type { CarModelId } from './carModels';
+import type { ThemeId } from './themes';
+
+export type { CarModelId } from './carModels';
+export type { ThemeId } from './themes';
+
 export type GameEngineCallbacks = {
   onCoordsUpdate: (x: number, z: number) => void;
   onZoneChange: (zone: ZoneId | null) => void;
   onCollision?: (impact: number) => void;
   onCameraModeChange?: (mode: CameraMode) => void;
   onLightModeChange?: (mode: LightMode) => void;
+  onCarModelChange?: (id: CarModelId) => void;
+  onCarColorChange?: (hex: number) => void;
+  onThemeChange?: (id: ThemeId) => void;
 };
 
 export type Transform = {

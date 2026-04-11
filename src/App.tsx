@@ -3,13 +3,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { GameEngine } from './GameEngine';
 import type {
+  CameraMode,
   Coords,
   LabelsMap,
+  LightMode,
   ModalId,
   MovementKey,
   PressedKeys,
   ZoneId,
 } from './types';
+import { CAMERA_MODE_LABEL, LIGHT_MODE_LABEL } from './types';
 import Modal from './components/modal/Modal';
 import Header from './components/Header';
 import Labels from './components/map/Labels';
@@ -17,6 +20,7 @@ import MobileControl from './components/MobileControl';
 import ProximityAction from './components/ProximityAction';
 import Minimap from './components/Minimap';
 import CrashOverlay from './components/CrashOverlay';
+import HelpModal from './components/HelpModal';
 
 if (typeof window !== 'undefined') {
   void import('iconify-icon');
@@ -42,6 +46,9 @@ function App() {
     d: false,
   });
   const [crashKey, setCrashKey] = useState(0);
+  const [cameraMode, setCameraMode] = useState<CameraMode>('chase');
+  const [lightMode, setLightMode] = useState<LightMode>('low');
+  const [showHelp, setShowHelp] = useState(false);
 
   const labelsRefs = useRef<LabelsMap>({
     about: null,
@@ -65,6 +72,8 @@ function App() {
           canvas.classList.add('shake');
         }
       },
+      onCameraModeChange: (mode) => setCameraMode(mode),
+      onLightModeChange: (mode) => setLightMode(mode),
     });
 
     return () => {
@@ -78,6 +87,10 @@ function App() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (showHelp) {
+        if (e.key === 'Escape') setShowHelp(false);
+        return;
+      }
       if (openModal) {
         if (e.key === 'Escape') setOpenModal(null);
         return;
@@ -92,6 +105,15 @@ function App() {
       }
       if (k === 'h') {
         engineRef.current?.honk();
+      }
+      if (k === 'c') {
+        engineRef.current?.cycleCameraMode();
+      }
+      if (k === 'l') {
+        engineRef.current?.cycleLightMode();
+      }
+      if (k === '?' || (e.shiftKey && k === '/')) {
+        setShowHelp((v) => !v);
       }
     };
 
@@ -110,7 +132,7 @@ function App() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [openModal, activeZone]);
+  }, [openModal, activeZone, showHelp]);
 
   const handleMobileInput =
     (key: MovementKey, isPressed: boolean) =>
@@ -130,6 +152,110 @@ function App() {
         {/* Mobile Controls */}
         <MobileControl handleMobileInput={handleMobileInput} />
       </div>
+      {/* MODE HUD */}
+      <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 pointer-events-auto">
+        <div className="flex items-center gap-1 md:gap-1.5 bg-zinc-900/90 backdrop-blur border border-white/10 rounded-full px-1.5 py-1 md:px-2 md:py-1.5 shadow-xl">
+          {/* Camera */}
+          <button
+            type="button"
+            onClick={() => engineRef.current?.cycleCameraMode()}
+            className="group flex items-center gap-1.5 px-2 py-1.5 rounded-full border border-white/10 bg-zinc-800/70 hover:bg-zinc-800 hover:border-cyan-400/40 transition-colors"
+            title={`Camera: ${CAMERA_MODE_LABEL[cameraMode]} · Press C`}
+            aria-label={`Camera mode: ${CAMERA_MODE_LABEL[cameraMode]}`}
+          >
+            <iconify-icon
+              icon="lucide:video"
+              width="14"
+              class="text-cyan-300"
+            ></iconify-icon>
+            <span className="hidden md:inline text-[10px] font-mono font-semibold text-cyan-300 tracking-wider">
+              {CAMERA_MODE_LABEL[cameraMode]}
+            </span>
+          </button>
+
+          {/* Lights */}
+          <button
+            type="button"
+            onClick={() => engineRef.current?.cycleLightMode()}
+            className="group flex items-center gap-1.5 px-2 py-1.5 rounded-full border border-white/10 bg-zinc-800/70 hover:bg-zinc-800 hover:border-blue-400/40 transition-colors"
+            title={`Lights: ${LIGHT_MODE_LABEL[lightMode]} · Press L`}
+            aria-label={`Light mode: ${LIGHT_MODE_LABEL[lightMode]}`}
+          >
+            <iconify-icon
+              icon={
+                lightMode === 'off'
+                  ? 'lucide:lightbulb-off'
+                  : lightMode === 'hazard'
+                    ? 'lucide:triangle-alert'
+                    : 'lucide:lightbulb'
+              }
+              width="14"
+              class={
+                lightMode === 'off'
+                  ? 'text-zinc-500'
+                  : lightMode === 'hazard'
+                    ? 'text-orange-400'
+                    : lightMode === 'high'
+                      ? 'text-white'
+                      : 'text-blue-300'
+              }
+            ></iconify-icon>
+            <span
+              className={`hidden md:inline text-[10px] font-mono font-semibold tracking-wider ${
+                lightMode === 'off'
+                  ? 'text-zinc-500'
+                  : lightMode === 'hazard'
+                    ? 'text-orange-400'
+                    : lightMode === 'high'
+                      ? 'text-white'
+                      : 'text-blue-300'
+              }`}
+            >
+              {LIGHT_MODE_LABEL[lightMode]}
+            </span>
+          </button>
+
+          {/* Horn */}
+          <button
+            type="button"
+            onClick={() => engineRef.current?.honk()}
+            className="group flex items-center gap-1.5 px-2 py-1.5 rounded-full border border-white/10 bg-zinc-800/70 hover:bg-zinc-800 hover:border-yellow-400/40 transition-colors"
+            title="Horn · Press H"
+            aria-label="Honk horn"
+          >
+            <iconify-icon
+              icon="lucide:megaphone"
+              width="14"
+              class="text-yellow-300"
+            ></iconify-icon>
+            <span className="hidden md:inline text-[10px] font-mono font-semibold text-yellow-300 tracking-wider">
+              HORN
+            </span>
+          </button>
+
+          {/* Divider */}
+          <div className="w-px h-5 bg-white/10 mx-0.5" />
+
+          {/* Help */}
+          <button
+            type="button"
+            onClick={() => setShowHelp(true)}
+            className="group flex items-center gap-1.5 px-2 py-1.5 rounded-full border border-white/10 bg-zinc-800/70 hover:bg-zinc-800 hover:border-emerald-400/40 transition-colors"
+            title="Help · Press ?"
+            aria-label="Show help"
+          >
+            <iconify-icon
+              icon="lucide:circle-help"
+              width="14"
+              class="text-emerald-400"
+            ></iconify-icon>
+            <span className="hidden md:inline text-[10px] font-mono font-semibold text-emerald-400 tracking-wider">
+              HELP
+            </span>
+          </button>
+        </div>
+      </div>
+
       {/* 3D CANVAS */}
       <div ref={containerRef} id="canvas-container" className="relative z-0"></div>
       {/* LABELS */}
@@ -140,6 +266,8 @@ function App() {
       <CrashOverlay crashKey={crashKey} />
       {/* MODALS */}
       <Modal openModal={openModal} setOpenModal={setOpenModal} />
+      {/* HELP MODAL */}
+      <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
     </>
   );
 }

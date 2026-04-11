@@ -14,10 +14,34 @@ export type LabelsMap = Record<ZoneId, HTMLDivElement | null>;
 
 export type LabelsRefs = RefObject<LabelsMap>;
 
+export type CameraMode = 'chase' | 'cockpit' | 'cinematic' | 'topdown';
+
+export const CAMERA_MODES: CameraMode[] = ['chase', 'cockpit', 'cinematic', 'topdown'];
+
+export const CAMERA_MODE_LABEL: Record<CameraMode, string> = {
+  chase: 'CHASE',
+  cockpit: 'COCKPIT',
+  cinematic: 'CINEMATIC',
+  topdown: 'TOP-DOWN',
+};
+
+export type LightMode = 'off' | 'low' | 'high' | 'hazard';
+
+export const LIGHT_MODES: LightMode[] = ['off', 'low', 'high', 'hazard'];
+
+export const LIGHT_MODE_LABEL: Record<LightMode, string> = {
+  off: 'OFF',
+  low: 'LOW BEAM',
+  high: 'HIGH BEAM',
+  hazard: 'HAZARD',
+};
+
 export type GameEngineCallbacks = {
   onCoordsUpdate: (x: number, z: number) => void;
   onZoneChange: (zone: ZoneId | null) => void;
   onCollision?: (impact: number) => void;
+  onCameraModeChange?: (mode: CameraMode) => void;
+  onLightModeChange?: (mode: LightMode) => void;
 };
 
 export type Transform = {

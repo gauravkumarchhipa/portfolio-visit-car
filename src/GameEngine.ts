@@ -1,14 +1,19 @@
 import * as THREE from 'three';
 import { AudioEngine } from './AudioEngine';
 import type {
+  CameraMode,
   Coords,
   GameEngineCallbacks,
   LabelsRefs,
+  LightMode,
   MovementKey,
   PressedKeys,
   Transform,
   ZoneId,
 } from './types';
+import { CAMERA_MODES, LIGHT_MODES } from './types';
+
+const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
 type BuildingAABB = {
   minX: number;
@@ -86,6 +91,12 @@ export class GameEngine {
   private lastCollisionAt = 0;
   private audio = new AudioEngine();
   private lastBrakeAt = 0;
+  private carSpotL!: THREE.SpotLight;
+  private carSpotR!: THREE.SpotLight;
+  private headlightMeshL!: THREE.Mesh;
+  private headlightMeshR!: THREE.Mesh;
+  private cameraMode: CameraMode = 'chase';
+  private lightMode: LightMode = 'low';
 
   constructor(container: HTMLElement, labelsRefs: LabelsRefs, callbacks: GameEngineCallbacks) {
     this.container = container;
@@ -301,6 +312,8 @@ export class GameEngine {
     hlRight.position.set(0.5, 0.6, -1.61);
     this.carGroup.add(hlLeft);
     this.carGroup.add(hlRight);
+    this.headlightMeshL = hlLeft;
+    this.headlightMeshR = hlRight;
 
     const carSpotL = new THREE.SpotLight(0xbfdbfe, 3, 30, 0.5, 0.5, 1);
     carSpotL.position.set(-0.5, 0.6, -1.5);
@@ -313,6 +326,10 @@ export class GameEngine {
     carSpotR.target.position.set(0.5, 0, -10);
     this.carGroup.add(carSpotR);
     this.carGroup.add(carSpotR.target);
+
+    this.carSpotL = carSpotL;
+    this.carSpotR = carSpotR;
+    this.applyLightMode();
 
     const wheelGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.3, 16);
     const wheelMat = new THREE.MeshStandardMaterial({ color: 0x09090b });
@@ -412,6 +429,146 @@ export class GameEngine {
   public honk(): void {
     this.audio.ensureStarted();
     this.audio.honk();
+  }
+
+  // ─── Camera modes ─────────────────────────────────────────────────────
+
+  public cycleCameraMode(): CameraMode {
+    const i = CAMERA_MODES.indexOf(this.cameraMode);
+    this.cameraMode = CAMERA_MODES[(i + 1) % CAMERA_MODES.length];
+    this.callbacks.onCameraModeChange?.(this.cameraMode);
+    return this.cameraMode;
+  }
+
+  public getCameraMode(): CameraMode {
+    return this.cameraMode;
+  }
+
+  private updateCamera(): void {
+    const pos = this.carGroup.position;
+    const angle = this.state.angle;
+
+    switch (this.cameraMode) {
+      case 'chase': {
+        const offset = new THREE.Vector3(0, 5, 10);
+        offset.applyAxisAngle(Y_AXIS, angle);
+        offset.add(pos);
+        this.camera.position.lerp(offset, 0.1);
+
+        const lookAt = new THREE.Vector3(0, 0, -10);
+        lookAt.applyAxisAngle(Y_AXIS, angle);
+        lookAt.add(pos);
+        this.camera.lookAt(lookAt);
+        break;
+      }
+      case 'cockpit': {
+        const offset = new THREE.Vector3(0, 1.4, -0.3);
+        offset.applyAxisAngle(Y_AXIS, angle);
+        offset.add(pos);
+        this.camera.position.lerp(offset, 0.5);
+
+        const lookAt = new THREE.Vector3(0, 1.2, -20);
+        lookAt.applyAxisAngle(Y_AXIS, angle);
+        lookAt.add(pos);
+        this.camera.lookAt(lookAt);
+        break;
+      }
+      case 'cinematic': {
+        // Slow low-angle orbit around the car — decoupled from the car's heading.
+        const t = performance.now() * 0.00025;
+        const radius = 12;
+        const offset = new THREE.Vector3(
+          Math.sin(t) * radius,
+          1.8 + Math.sin(t * 1.7) * 0.4,
+          Math.cos(t) * radius
+        );
+        offset.add(pos);
+        this.camera.position.lerp(offset, 0.04);
+        this.camera.lookAt(pos.x, pos.y + 0.8, pos.z);
+        break;
+      }
+      case 'topdown': {
+        const target = new THREE.Vector3(pos.x, 38, pos.z);
+        this.camera.position.lerp(target, 0.1);
+        this.camera.up.set(-Math.sin(angle), 0, -Math.cos(angle));
+        this.camera.lookAt(pos.x, 0, pos.z);
+        break;
+      }
+    }
+  }
+
+  // ─── Light modes ──────────────────────────────────────────────────────
+
+  public cycleLightMode(): LightMode {
+    const i = LIGHT_MODES.indexOf(this.lightMode);
+    this.lightMode = LIGHT_MODES[(i + 1) % LIGHT_MODES.length];
+    this.applyLightMode();
+    this.callbacks.onLightModeChange?.(this.lightMode);
+    return this.lightMode;
+  }
+
+  public getLightMode(): LightMode {
+    return this.lightMode;
+  }
+
+  private applyLightMode(): void {
+    if (!this.carSpotL || !this.carSpotR) return;
+    const meshMat = this.headlightMeshL?.material as THREE.MeshBasicMaterial | undefined;
+    const meshMatR = this.headlightMeshR?.material as THREE.MeshBasicMaterial | undefined;
+
+    switch (this.lightMode) {
+      case 'off':
+        this.carSpotL.intensity = 0;
+        this.carSpotR.intensity = 0;
+        this.carSpotL.distance = 30;
+        this.carSpotR.distance = 30;
+        this.carSpotL.color.set(0xbfdbfe);
+        this.carSpotR.color.set(0xbfdbfe);
+        if (meshMat) meshMat.color.set(0x1e293b);
+        if (meshMatR) meshMatR.color.set(0x1e293b);
+        break;
+      case 'low':
+        this.carSpotL.intensity = 2;
+        this.carSpotR.intensity = 2;
+        this.carSpotL.distance = 25;
+        this.carSpotR.distance = 25;
+        this.carSpotL.color.set(0xbfdbfe);
+        this.carSpotR.color.set(0xbfdbfe);
+        if (meshMat) meshMat.color.set(0xbfdbfe);
+        if (meshMatR) meshMatR.color.set(0xbfdbfe);
+        break;
+      case 'high':
+        this.carSpotL.intensity = 6;
+        this.carSpotR.intensity = 6;
+        this.carSpotL.distance = 55;
+        this.carSpotR.distance = 55;
+        this.carSpotL.color.set(0xffffff);
+        this.carSpotR.color.set(0xffffff);
+        if (meshMat) meshMat.color.set(0xffffff);
+        if (meshMatR) meshMatR.color.set(0xffffff);
+        break;
+      case 'hazard':
+        // Actual on/off blinking is handled frame-by-frame in updateHazardBlink.
+        this.carSpotL.distance = 20;
+        this.carSpotR.distance = 20;
+        this.carSpotL.color.set(0xfb923c);
+        this.carSpotR.color.set(0xfb923c);
+        break;
+    }
+  }
+
+  private updateHazardBlink(): void {
+    if (this.lightMode !== 'hazard') return;
+    if (!this.carSpotL || !this.carSpotR) return;
+    const on = Math.floor(performance.now() / 260) % 2 === 0;
+    const intensity = on ? 4 : 0;
+    this.carSpotL.intensity = intensity;
+    this.carSpotR.intensity = intensity;
+    const meshMat = this.headlightMeshL?.material as THREE.MeshBasicMaterial | undefined;
+    const meshMatR = this.headlightMeshR?.material as THREE.MeshBasicMaterial | undefined;
+    const meshColor = on ? 0xfb923c : 0x1e293b;
+    if (meshMat) meshMat.color.set(meshColor);
+    if (meshMatR) meshMatR.color.set(meshColor);
   }
 
   public setMuted(muted: boolean): void {
@@ -519,17 +676,10 @@ export class GameEngine {
         this.state.speed = -this.state.speed * 0.25;
       }
 
-      const idealOffset = new THREE.Vector3(0, 5, 10);
-      idealOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.state.angle);
-      idealOffset.add(this.carGroup.position);
-
-      this.camera.position.lerp(idealOffset, 0.1);
-
-      const lookAtPos = new THREE.Vector3(0, 0, -10);
-      lookAtPos.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.state.angle);
-      lookAtPos.add(this.carGroup.position);
-      this.camera.lookAt(lookAtPos);
+      this.updateCamera();
     }
+
+    this.updateHazardBlink();
 
     let nearbyZone: ZoneId | null = null;
     this.zones.forEach((zone) => {

@@ -12,11 +12,13 @@ node_modules
 .pnp
 .pnp.js
 
-# Build output
+# Build output (Next.js)
+.next
+out
 dist
-dist-ssr
 build
 *.local
+next-env.d.ts
 
 # Environment variables
 .env

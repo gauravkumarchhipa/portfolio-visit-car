@@ -1,5 +1,11 @@
+'use client';
+
 import React, { useEffect, useRef, useState } from 'react';
 import { GameEngine } from './GameEngine';
+
+if (typeof window !== 'undefined') {
+  import('iconify-icon');
+}
 
 function App() {
   const containerRef = useRef(null);

@@ -3,8 +3,9 @@ import React from 'react';
 import ABoutModal from './ABoutModal';
 import ExperienceModal from './ExperienceModal';
 import PortfolioModal from './PortfolioModal';
+import SkillsModal from './SkillsModal';
 
-type ModalId = 'about' | 'experience' | 'portfolio';
+type ModalId = 'about' | 'experience' | 'portfolio' | 'skills';
 
 type ModalProps = {
   openModal: ModalId | null;
@@ -20,6 +21,9 @@ const Modal = ({ openModal, setOpenModal }: ModalProps) => {
   }
   if (openModal === 'portfolio') {
     return <PortfolioModal openModal={openModal} setOpenModal={setOpenModal} />;
+  }
+  if (openModal === 'skills') {
+    return <SkillsModal openModal={openModal} setOpenModal={setOpenModal} />;
   }
   return null;
 };

@@ -65,6 +65,7 @@ function App() {
     about: null,
     experience: null,
     portfolio: null,
+    skills: null,
   });
 
   useEffect(() => {

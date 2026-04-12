@@ -1,8 +1,8 @@
 import React from 'react';
 
 type Props = {
-  openModal: 'about' | 'experience' | 'portfolio' | null;
-  setOpenModal: (v: 'about' | 'experience' | 'portfolio' | null) => void;
+  openModal: 'about' | 'experience' | 'portfolio' | 'skills' | null;
+  setOpenModal: (v: 'about' | 'experience' | 'portfolio' | 'skills' | null) => void;
 };
 
 type Project = {

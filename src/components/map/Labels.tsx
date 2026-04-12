@@ -2,6 +2,7 @@ import React from 'react'
 import About from './About'
 import Experience from './Experience'
 import Projects from './Projects'
+import Skills from './Skills'
 
 const Labels = ({ labelsRefs }: any) => {
     return (
@@ -14,6 +15,8 @@ const Labels = ({ labelsRefs }: any) => {
             <Experience labelsRefs={labelsRefs} />
 
             <Projects labelsRefs={labelsRefs} />
+
+            <Skills labelsRefs={labelsRefs} />
         </div>
     )
 }

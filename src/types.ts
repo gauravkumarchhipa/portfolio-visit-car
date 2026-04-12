@@ -1,6 +1,6 @@
 import type { RefObject } from 'react';
 
-export type ZoneId = 'about' | 'experience' | 'portfolio';
+export type ZoneId = 'about' | 'experience' | 'portfolio' | 'skills';
 
 export type ModalId = ZoneId;
 
@@ -139,4 +139,5 @@ export const MAP_ZONES: MapZone[] = [
   { id: 'about', x: -30, z: -30, color: '#a855f7' },
   { id: 'experience', x: 30, z: -30, color: '#3b82f6' },
   { id: 'portfolio', x: 0, z: 40, color: '#10b981' },
+  { id: 'skills', x: -40, z: 30, color: '#f59e0b' },
 ];

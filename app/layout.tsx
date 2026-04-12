@@ -10,8 +10,11 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Portfolio | Open World 3D',
-  description: 'A 3D interactive portfolio experience.',
+  title: 'Gaurav Chhipa | 3D Interactive Portfolio',
+  description: 'MERN Stack Developer & Senior Engineer — explore my work in a 3D driving experience.',
+  icons: {
+    icon: '/icon.svg',
+  },
 };
 
 export const viewport: Viewport = {

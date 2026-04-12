@@ -18,6 +18,8 @@
  *   public/sounds/crash.mp3        — metal crunch / impact (~0.5–1.2s)
  */
 
+import type { HornMode } from './types';
+
 type SampleName = 'engine' | 'horn' | 'brake' | 'crash';
 
 const SAMPLE_PATHS: Record<SampleName, string> = {
@@ -46,6 +48,7 @@ export class AudioEngine {
   private started = false;
   private muted = false;
   private noiseBuffer: AudioBuffer | null = null;
+  private hornMode: HornMode = 'standard';
 
   /** Must be called from a user gesture (keydown, pointerdown, ...). */
   ensureStarted(): void {
@@ -215,14 +218,36 @@ export class AudioEngine {
     src.start();
   }
 
+  setHornMode(mode: HornMode): void {
+    this.hornMode = mode;
+  }
+
+  getHornMode(): HornMode {
+    return this.hornMode;
+  }
+
   honk(): void {
     if (!this.ctx || !this.master) return;
-    const buf = this.buffers.horn;
-    if (buf) {
-      this.playBuffer(buf, 0.8);
-      return;
+    switch (this.hornMode) {
+      case 'standard':
+        this.synthHonk();
+        break;
+      case 'mercedes':
+        this.synthHonkMercedes();
+        break;
+      case 'jeep':
+        this.synthHonkJeep();
+        break;
+      case 'fortuner':
+        this.synthHonkFortuner();
+        break;
+      case 'truck':
+        this.synthHonkTruck();
+        break;
+      case 'sports':
+        this.synthHonkSports();
+        break;
     }
-    this.synthHonk();
   }
 
   brake(intensity = 1): void {
@@ -266,6 +291,170 @@ export class AudioEngine {
     osc.connect(lp).connect(g).connect(master);
     osc.start(t);
     osc.stop(t + 0.42);
+  }
+
+  /** Mercedes — rich dual-tone chord, smooth attack, luxurious feel */
+  private synthHonkMercedes(): void {
+    const ctx = this.ctx!;
+    const master = this.master!;
+    const t = ctx.currentTime;
+
+    // Two sine oscillators forming a major third chord
+    const freqs = [480, 600];
+    for (const freq of freqs) {
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.22, t + 0.04);
+      g.gain.setValueAtTime(0.22, t + 0.45);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 2200;
+      osc.connect(lp).connect(g).connect(master);
+      osc.start(t);
+      osc.stop(t + 0.65);
+    }
+  }
+
+  /** Jeep — aggressive mid-range blare, punchy and bold */
+  private synthHonkJeep(): void {
+    const ctx = this.ctx!;
+    const master = this.master!;
+    const t = ctx.currentTime;
+
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(310, t);
+    osc.frequency.setValueAtTime(340, t + 0.08);
+    osc.frequency.setValueAtTime(310, t + 0.25);
+
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.3, t + 0.01);
+    g.gain.setValueAtTime(0.3, t + 0.35);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.45);
+
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 900;
+    lp.Q.value = 2;
+
+    osc.connect(lp).connect(g).connect(master);
+    osc.start(t);
+    osc.stop(t + 0.5);
+  }
+
+  /** Fortuner — deep two-step horn, authoritative SUV feel */
+  private synthHonkFortuner(): void {
+    const ctx = this.ctx!;
+    const master = this.master!;
+    const t = ctx.currentTime;
+
+    // First tone — low
+    const osc1 = ctx.createOscillator();
+    osc1.type = 'square';
+    osc1.frequency.setValueAtTime(280, t);
+    const g1 = ctx.createGain();
+    g1.gain.setValueAtTime(0.0001, t);
+    g1.gain.exponentialRampToValueAtTime(0.24, t + 0.02);
+    g1.gain.setValueAtTime(0.24, t + 0.2);
+    g1.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
+    const lp1 = ctx.createBiquadFilter();
+    lp1.type = 'lowpass';
+    lp1.frequency.value = 1000;
+    osc1.connect(lp1).connect(g1).connect(master);
+    osc1.start(t);
+    osc1.stop(t + 0.28);
+
+    // Second tone — higher, after short gap
+    const osc2 = ctx.createOscillator();
+    osc2.type = 'square';
+    osc2.frequency.setValueAtTime(380, t + 0.28);
+    const g2 = ctx.createGain();
+    g2.gain.setValueAtTime(0.0001, t + 0.28);
+    g2.gain.exponentialRampToValueAtTime(0.26, t + 0.3);
+    g2.gain.setValueAtTime(0.26, t + 0.55);
+    g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.65);
+    const lp2 = ctx.createBiquadFilter();
+    lp2.type = 'lowpass';
+    lp2.frequency.value = 1200;
+    osc2.connect(lp2).connect(g2).connect(master);
+    osc2.start(t + 0.28);
+    osc2.stop(t + 0.7);
+  }
+
+  /** Truck — deep, loud air horn, long sustain */
+  private synthHonkTruck(): void {
+    const ctx = this.ctx!;
+    const master = this.master!;
+    const t = ctx.currentTime;
+
+    // Very low fundamental
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(130, t);
+    osc.frequency.linearRampToValueAtTime(145, t + 0.15);
+    osc.frequency.setValueAtTime(145, t + 0.8);
+    osc.frequency.linearRampToValueAtTime(125, t + 1.0);
+
+    // Sub-bass reinforcement
+    const sub = ctx.createOscillator();
+    sub.type = 'sine';
+    sub.frequency.setValueAtTime(65, t);
+
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.35, t + 0.06);
+    g.gain.setValueAtTime(0.35, t + 0.75);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.0);
+
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 600;
+    lp.Q.value = 3;
+
+    osc.connect(lp);
+    sub.connect(lp);
+    lp.connect(g).connect(master);
+    osc.start(t);
+    sub.start(t);
+    osc.stop(t + 1.05);
+    sub.stop(t + 1.05);
+  }
+
+  /** Sports — sharp high-pitched beep, quick and electric */
+  private synthHonkSports(): void {
+    const ctx = this.ctx!;
+    const master = this.master!;
+    const t = ctx.currentTime;
+
+    // Two quick beeps
+    for (let i = 0; i < 2; i++) {
+      const offset = i * 0.15;
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(800, t + offset);
+      osc.frequency.exponentialRampToValueAtTime(950, t + offset + 0.05);
+      osc.frequency.setValueAtTime(950, t + offset + 0.1);
+
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t + offset);
+      g.gain.exponentialRampToValueAtTime(0.25, t + offset + 0.008);
+      g.gain.setValueAtTime(0.25, t + offset + 0.08);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + offset + 0.12);
+
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 900;
+      bp.Q.value = 4;
+
+      osc.connect(bp).connect(g).connect(master);
+      osc.start(t + offset);
+      osc.stop(t + offset + 0.14);
+    }
   }
 
   private synthBrake(intensity: number): void {

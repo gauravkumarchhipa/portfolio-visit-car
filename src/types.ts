@@ -36,6 +36,28 @@ export const LIGHT_MODE_LABEL: Record<LightMode, string> = {
   hazard: 'HAZARD',
 };
 
+export type HornMode = 'standard' | 'mercedes' | 'jeep' | 'fortuner' | 'truck' | 'sports';
+
+export const HORN_MODES: HornMode[] = ['standard', 'mercedes', 'jeep', 'fortuner', 'truck', 'sports'];
+
+export const HORN_MODE_LABEL: Record<HornMode, string> = {
+  standard: 'Standard',
+  mercedes: 'Mercedes',
+  jeep: 'Jeep',
+  fortuner: 'Fortuner',
+  truck: 'Truck',
+  sports: 'Sports',
+};
+
+export const HORN_MODE_ICON: Record<HornMode, string> = {
+  standard: 'lucide:megaphone',
+  mercedes: 'lucide:gem',
+  jeep: 'lucide:mountain',
+  fortuner: 'lucide:shield',
+  truck: 'lucide:truck',
+  sports: 'lucide:zap',
+};
+
 import type { CarModelId } from './carModels';
 import type { ThemeId } from './themes';
 
@@ -51,6 +73,7 @@ export type GameEngineCallbacks = {
   onCarModelChange?: (id: CarModelId) => void;
   onCarColorChange?: (hex: number) => void;
   onThemeChange?: (id: ThemeId) => void;
+  onHornModeChange?: (mode: HornMode) => void;
 };
 
 export type Transform = {

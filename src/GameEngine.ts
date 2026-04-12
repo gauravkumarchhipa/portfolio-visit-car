@@ -5,6 +5,7 @@ import type {
   CarModelId,
   Coords,
   GameEngineCallbacks,
+  HornMode,
   LabelsRefs,
   LightMode,
   MovementKey,
@@ -132,9 +133,10 @@ export class GameEngine {
 
   private init(): void {
     this.scene = new THREE.Scene();
-    const fogColor = new THREE.Color('#09090b');
-    this.scene.background = fogColor;
-    this.scene.fog = new THREE.Fog(fogColor, 20, 80);
+    const initialThemeConfig = THEME_MAP[this.currentTheme];
+    const fogColor = new THREE.Color(initialThemeConfig.fogColor);
+    this.scene.background = new THREE.Color(initialThemeConfig.background);
+    this.scene.fog = new THREE.Fog(fogColor, initialThemeConfig.fogNear, initialThemeConfig.fogFar);
 
     this.camera = new THREE.PerspectiveCamera(
       50,
@@ -186,10 +188,11 @@ export class GameEngine {
   }
 
   private setupLighting(): void {
-    this.hemiLight = new THREE.HemisphereLight(0xffffff, 0x09090b, 0.4);
+    const initTheme = THEME_MAP[this.currentTheme];
+    this.hemiLight = new THREE.HemisphereLight(initTheme.hemiSky, initTheme.hemiGround, initTheme.hemiIntensity);
     this.scene.add(this.hemiLight);
 
-    this.dirLight = new THREE.DirectionalLight(0xffffff, 1);
+    this.dirLight = new THREE.DirectionalLight(initTheme.dirColor, initTheme.dirIntensity);
     this.dirLight.position.set(50, 100, 50);
     this.dirLight.castShadow = true;
     this.dirLight.shadow.mapSize.width = 2048;
@@ -212,8 +215,9 @@ export class GameEngine {
 
   private setupCity(): void {
     const planeGeometry = new THREE.PlaneGeometry(500, 500);
+    const groundTheme = THEME_MAP[this.currentTheme];
     this.groundMat = new THREE.MeshStandardMaterial({
-      color: 0x18181b,
+      color: groundTheme.ground,
       roughness: 0.9,
       metalness: 0.1,
     });
@@ -226,7 +230,7 @@ export class GameEngine {
     this.scene.add(cityGroup);
 
     const buildingGeo = new THREE.BoxGeometry(1, 1, 1);
-    const buildingMat = new THREE.MeshStandardMaterial({ color: 0x27272a, roughness: 0.2 });
+    const buildingMat = new THREE.MeshStandardMaterial({ color: groundTheme.buildingColor, roughness: 0.2 });
 
     for (let i = 0; i < 200; i++) {
       const x = (Math.random() - 0.5) * 160;
@@ -519,6 +523,17 @@ export class GameEngine {
   public honk(): void {
     this.audio.ensureStarted();
     this.audio.honk();
+  }
+
+  // ─── Horn modes ───────────────────────────────────────────────────────
+
+  public setHornMode(mode: HornMode): void {
+    this.audio.setHornMode(mode);
+    this.callbacks.onHornModeChange?.(mode);
+  }
+
+  public getHornMode(): HornMode {
+    return this.audio.getHornMode();
   }
 
   // ─── Camera modes ─────────────────────────────────────────────────────

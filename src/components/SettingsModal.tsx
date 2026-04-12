@@ -3,10 +3,11 @@
 import React, { useEffect, useState } from 'react';
 import { CAR_COLOR_PRESETS, CAR_MODELS, type CarModelId } from '../carModels';
 import { THEMES, THEME_MAP, type ThemeId } from '../themes';
+import { HORN_MODES, HORN_MODE_LABEL, HORN_MODE_ICON, type HornMode } from '../types';
 import CarPreview from './CarPreview';
 import ThemePreview from './ThemePreview';
 
-type Step = 'car' | 'theme';
+type Step = 'car' | 'horn' | 'theme';
 
 type SettingsModalProps = {
   open: boolean;
@@ -14,9 +15,12 @@ type SettingsModalProps = {
   carModel: CarModelId;
   carColor: number;
   theme: ThemeId;
+  hornMode: HornMode;
   onCarModel: (id: CarModelId) => void;
   onCarColor: (hex: number) => void;
   onTheme: (id: ThemeId) => void;
+  onHornMode: (mode: HornMode) => void;
+  onHornPreview: () => void;
 };
 
 function hexToCss(hex: number): string {
@@ -33,9 +37,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   carModel,
   carColor,
   theme,
+  hornMode,
   onCarModel,
   onCarColor,
   onTheme,
+  onHornMode,
+  onHornPreview,
 }) => {
   const [step, setStep] = useState<Step>('car');
 
@@ -65,8 +72,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               </h2>
               <p className="text-[10px] sm:text-xs text-zinc-500 mt-0.5 uppercase tracking-wider truncate">
                 {step === 'car'
-                  ? `Step 1 / 2 · Choose your car`
-                  : `Step 2 / 2 · Choose the world`}
+                  ? `Step 1 / 3 · Choose your car`
+                  : step === 'horn'
+                  ? `Step 2 / 3 · Choose your horn`
+                  : `Step 3 / 3 · Choose the world`}
               </p>
             </div>
 
@@ -79,6 +88,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   aria-label="Go to car step"
                   className={`h-1.5 rounded-full transition-all ${
                     step === 'car' ? 'w-6 bg-pink-400' : 'w-1.5 bg-white/20 hover:bg-white/40'
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setStep('horn')}
+                  aria-label="Go to horn step"
+                  className={`h-1.5 rounded-full transition-all ${
+                    step === 'horn' ? 'w-6 bg-yellow-400' : 'w-1.5 bg-white/20 hover:bg-white/40'
                   }`}
                 />
                 <button
@@ -203,8 +220,80 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setStep('theme')}
+                  onClick={() => setStep('horn')}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-pink-500 to-rose-500 text-white text-[11px] font-semibold uppercase tracking-wider shadow-[0_0_20px_rgba(236,72,153,0.4)] hover:from-pink-400 hover:to-rose-400 transition-colors"
+                >
+                  Next · Horn
+                  <iconify-icon icon="lucide:arrow-right" width="14"></iconify-icon>
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* ─── STEP 2: HORN ────────────────────────────────── */}
+          {step === 'horn' && (
+            <>
+              <section className="mb-6">
+                <h3 className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold mb-3 flex items-center gap-2">
+                  <iconify-icon icon="lucide:megaphone" width="12"></iconify-icon>
+                  Horn Sound
+                  <span className="ml-auto text-yellow-300 font-mono">
+                    {HORN_MODE_LABEL[hornMode]}
+                  </span>
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {HORN_MODES.map((m) => {
+                    const active = m === hornMode;
+                    return (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => {
+                          onHornMode(m);
+                          // Small delay so the mode is applied before playing
+                          setTimeout(() => onHornPreview(), 50);
+                        }}
+                        className={`flex items-center gap-2.5 p-3 rounded-lg border transition-all ${
+                          active
+                            ? 'border-yellow-400 bg-yellow-500/10 shadow-[0_0_18px_rgba(250,204,21,0.25)]'
+                            : 'border-white/10 bg-zinc-900/60 hover:border-white/20 hover:bg-zinc-900'
+                        }`}
+                      >
+                        <iconify-icon
+                          icon={HORN_MODE_ICON[m]}
+                          width="20"
+                          class={active ? 'text-yellow-300' : 'text-zinc-400'}
+                        ></iconify-icon>
+                        <span
+                          className={`text-[11px] font-semibold tracking-wide ${
+                            active ? 'text-yellow-300' : 'text-zinc-300'
+                          }`}
+                        >
+                          {HORN_MODE_LABEL[m]}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[10px] text-zinc-600 mt-3">
+                  Press <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 font-mono text-[9px]">H</kbd> or tap the horn button to hear your selection.
+                </p>
+              </section>
+
+              {/* Step actions */}
+              <div className="flex items-center justify-between gap-2 pt-4 border-t border-white/5">
+                <button
+                  type="button"
+                  onClick={() => setStep('car')}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-white/10 bg-zinc-900/60 text-zinc-300 hover:bg-zinc-900 hover:text-white text-[11px] font-semibold uppercase tracking-wider transition-colors"
+                >
+                  <iconify-icon icon="lucide:arrow-left" width="14"></iconify-icon>
+                  Back · Car
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStep('theme')}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-yellow-500 to-amber-500 text-white text-[11px] font-semibold uppercase tracking-wider shadow-[0_0_20px_rgba(250,204,21,0.4)] hover:from-yellow-400 hover:to-amber-400 transition-colors"
                 >
                   Next · Theme
                   <iconify-icon icon="lucide:arrow-right" width="14"></iconify-icon>
@@ -213,7 +302,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             </>
           )}
 
-          {/* ─── STEP 2: THEME ───────────────────────────────── */}
+          {/* ─── STEP 3: THEME ───────────────────────────────── */}
           {step === 'theme' && (
             <>
               {open && (
@@ -267,11 +356,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               <div className="flex items-center justify-between gap-2 pt-4 border-t border-white/5">
                 <button
                   type="button"
-                  onClick={() => setStep('car')}
+                  onClick={() => setStep('horn')}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg border border-white/10 bg-zinc-900/60 text-zinc-300 hover:bg-zinc-900 hover:text-white text-[11px] font-semibold uppercase tracking-wider transition-colors"
                 >
                   <iconify-icon icon="lucide:arrow-left" width="14"></iconify-icon>
-                  Back · Car
+                  Back · Horn
                 </button>
                 <button
                   type="button"

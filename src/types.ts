@@ -58,6 +58,49 @@ export const HORN_MODE_ICON: Record<HornMode, string> = {
   sports: 'lucide:zap',
 };
 
+export type EngineSound =
+  | 'standard'
+  | 'v8muscle'
+  | 'turbo4'
+  | 'diesel'
+  | 'supercar'
+  | 'electric'
+  | 'f1'
+  | 'retro'
+  | 'motorcycle'
+  | 'hypercar';
+
+export const ENGINE_SOUNDS: EngineSound[] = [
+  'standard', 'v8muscle', 'turbo4', 'diesel', 'supercar',
+  'electric', 'f1', 'retro', 'motorcycle', 'hypercar',
+];
+
+export const ENGINE_SOUND_LABEL: Record<EngineSound, string> = {
+  standard: 'Standard',
+  v8muscle: 'V8 Muscle',
+  turbo4: 'Turbo 4-Cyl',
+  diesel: 'Diesel',
+  supercar: 'Supercar V10',
+  electric: 'Electric',
+  f1: 'F1 Racing',
+  retro: 'Retro Classic',
+  motorcycle: 'Motorcycle',
+  hypercar: 'Hypercar V12',
+};
+
+export const ENGINE_SOUND_ICON: Record<EngineSound, string> = {
+  standard: 'lucide:car',
+  v8muscle: 'lucide:flame',
+  turbo4: 'lucide:gauge',
+  diesel: 'lucide:truck',
+  supercar: 'lucide:rocket',
+  electric: 'lucide:battery-charging',
+  f1: 'lucide:flag',
+  retro: 'lucide:clock',
+  motorcycle: 'lucide:bike',
+  hypercar: 'lucide:crown',
+};
+
 import type { CarModelId } from './carModels';
 import type { ThemeId } from './themes';
 
@@ -74,6 +117,7 @@ export type GameEngineCallbacks = {
   onCarColorChange?: (hex: number) => void;
   onThemeChange?: (id: ThemeId) => void;
   onHornModeChange?: (mode: HornMode) => void;
+  onEngineSoundChange?: (sound: EngineSound) => void;
 };
 
 export type Transform = {

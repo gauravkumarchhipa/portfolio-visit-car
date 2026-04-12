@@ -6,6 +6,7 @@ import type {
   CameraMode,
   CarModelId,
   Coords,
+  EngineSound,
   HornMode,
   LabelsMap,
   LightMode,
@@ -58,6 +59,7 @@ function App() {
   const [carColor, setCarColor] = useState<number>(0x18181b);
   const [theme, setTheme] = useState<ThemeId>('night');
   const [hornMode, setHornMode] = useState<HornMode>('standard');
+  const [engineSound, setEngineSound] = useState<EngineSound>('standard');
 
   const labelsRefs = useRef<LabelsMap>({
     about: null,
@@ -87,6 +89,7 @@ function App() {
       onCarColorChange: (hex) => setCarColor(hex),
       onThemeChange: (id) => setTheme(id),
       onHornModeChange: (mode) => setHornMode(mode),
+      onEngineSoundChange: (sound) => setEngineSound(sound),
     });
 
     return () => {
@@ -319,6 +322,9 @@ function App() {
         onTheme={(id) => engineRef.current?.setTheme(id)}
         onHornMode={(mode) => engineRef.current?.setHornMode(mode)}
         onHornPreview={() => engineRef.current?.honk()}
+        engineSound={engineSound}
+        onEngineSound={(sound) => engineRef.current?.setEngineSound(sound)}
+        onEnginePreview={() => engineRef.current?.engineRevPreview()}
       />
     </>
   );

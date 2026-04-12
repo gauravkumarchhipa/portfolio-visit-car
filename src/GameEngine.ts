@@ -4,6 +4,7 @@ import type {
   CameraMode,
   CarModelId,
   Coords,
+  EngineSound,
   GameEngineCallbacks,
   HornMode,
   LabelsRefs,
@@ -534,6 +535,22 @@ export class GameEngine {
 
   public getHornMode(): HornMode {
     return this.audio.getHornMode();
+  }
+
+  // ─── Engine sound ─────────────────────────────────────────────────────
+
+  public setEngineSound(sound: EngineSound): void {
+    this.audio.setEngineSound(sound);
+    this.callbacks.onEngineSoundChange?.(sound);
+  }
+
+  public getEngineSound(): EngineSound {
+    return this.audio.getEngineSound();
+  }
+
+  public engineRevPreview(): void {
+    this.audio.ensureStarted();
+    this.audio.engineRevPreview();
   }
 
   // ─── Camera modes ─────────────────────────────────────────────────────

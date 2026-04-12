@@ -18,9 +18,109 @@
  *   public/sounds/crash.mp3        — metal crunch / impact (~0.5–1.2s)
  */
 
-import type { HornMode } from './types';
+import type { EngineSound, HornMode } from './types';
 
 type SampleName = 'engine' | 'horn' | 'brake' | 'crash';
+
+/** Each engine sound profile defines synth oscillator parameters and how
+ *  they respond to the car's speed ratio (0 = idle, 1 = max speed). */
+type EngineSoundProfile = {
+  oscType: OscillatorType;
+  subType: OscillatorType;
+  idleFreq: number;      // main osc freq at idle
+  maxFreq: number;       // main osc freq at full speed
+  subIdleFreq: number;   // sub osc freq at idle
+  subMaxFreq: number;    // sub osc freq at full speed
+  filterFreq: number;    // lowpass cutoff at idle
+  filterMaxFreq: number; // lowpass cutoff at full speed
+  filterQ: number;
+  idleGain: number;      // volume at idle
+  maxGain: number;       // volume at full speed
+  smoothing: number;     // setTargetAtTime time constant
+};
+
+const ENGINE_PROFILES: Record<EngineSound, EngineSoundProfile> = {
+  standard: {
+    oscType: 'sawtooth', subType: 'sine',
+    idleFreq: 60, maxFreq: 240,
+    subIdleFreq: 40, subMaxFreq: 130,
+    filterFreq: 320, filterMaxFreq: 1400, filterQ: 5,
+    idleGain: 0.035, maxGain: 0.21,
+    smoothing: 0.08,
+  },
+  v8muscle: {
+    oscType: 'sawtooth', subType: 'sawtooth',
+    idleFreq: 45, maxFreq: 200,
+    subIdleFreq: 22, subMaxFreq: 100,
+    filterFreq: 280, filterMaxFreq: 900, filterQ: 3,
+    idleGain: 0.055, maxGain: 0.3,
+    smoothing: 0.06,
+  },
+  turbo4: {
+    oscType: 'sawtooth', subType: 'sine',
+    idleFreq: 80, maxFreq: 380,
+    subIdleFreq: 55, subMaxFreq: 190,
+    filterFreq: 450, filterMaxFreq: 2200, filterQ: 6,
+    idleGain: 0.03, maxGain: 0.2,
+    smoothing: 0.05,
+  },
+  diesel: {
+    oscType: 'square', subType: 'sawtooth',
+    idleFreq: 35, maxFreq: 140,
+    subIdleFreq: 18, subMaxFreq: 70,
+    filterFreq: 200, filterMaxFreq: 650, filterQ: 2,
+    idleGain: 0.06, maxGain: 0.28,
+    smoothing: 0.12,
+  },
+  supercar: {
+    oscType: 'sawtooth', subType: 'triangle',
+    idleFreq: 70, maxFreq: 420,
+    subIdleFreq: 50, subMaxFreq: 210,
+    filterFreq: 500, filterMaxFreq: 2800, filterQ: 7,
+    idleGain: 0.03, maxGain: 0.22,
+    smoothing: 0.04,
+  },
+  electric: {
+    oscType: 'sine', subType: 'sine',
+    idleFreq: 120, maxFreq: 600,
+    subIdleFreq: 60, subMaxFreq: 300,
+    filterFreq: 800, filterMaxFreq: 4000, filterQ: 1,
+    idleGain: 0.02, maxGain: 0.12,
+    smoothing: 0.03,
+  },
+  f1: {
+    oscType: 'sawtooth', subType: 'sawtooth',
+    idleFreq: 100, maxFreq: 550,
+    subIdleFreq: 70, subMaxFreq: 275,
+    filterFreq: 600, filterMaxFreq: 3500, filterQ: 8,
+    idleGain: 0.03, maxGain: 0.25,
+    smoothing: 0.03,
+  },
+  retro: {
+    oscType: 'square', subType: 'square',
+    idleFreq: 50, maxFreq: 180,
+    subIdleFreq: 25, subMaxFreq: 90,
+    filterFreq: 250, filterMaxFreq: 800, filterQ: 4,
+    idleGain: 0.04, maxGain: 0.2,
+    smoothing: 0.1,
+  },
+  motorcycle: {
+    oscType: 'sawtooth', subType: 'square',
+    idleFreq: 55, maxFreq: 350,
+    subIdleFreq: 28, subMaxFreq: 175,
+    filterFreq: 350, filterMaxFreq: 2000, filterQ: 6,
+    idleGain: 0.04, maxGain: 0.26,
+    smoothing: 0.04,
+  },
+  hypercar: {
+    oscType: 'sawtooth', subType: 'triangle',
+    idleFreq: 85, maxFreq: 500,
+    subIdleFreq: 60, subMaxFreq: 250,
+    filterFreq: 550, filterMaxFreq: 3200, filterQ: 9,
+    idleGain: 0.025, maxGain: 0.24,
+    smoothing: 0.03,
+  },
+};
 
 const SAMPLE_PATHS: Record<SampleName, string> = {
   engine: '/sounds/engine_loop.mp3',
@@ -49,6 +149,7 @@ export class AudioEngine {
   private muted = false;
   private noiseBuffer: AudioBuffer | null = null;
   private hornMode: HornMode = 'standard';
+  private engineSound: EngineSound = 'standard';
 
   /** Must be called from a user gesture (keydown, pointerdown, ...). */
   ensureStarted(): void {
@@ -138,18 +239,20 @@ export class AudioEngine {
     const master = this.master;
     if (!ctx || !master) return;
 
+    const p = ENGINE_PROFILES[this.engineSound];
+
     const osc = ctx.createOscillator();
-    osc.type = 'sawtooth';
-    osc.frequency.value = 60;
+    osc.type = p.oscType;
+    osc.frequency.value = p.idleFreq;
     const sub = ctx.createOscillator();
-    sub.type = 'sine';
-    sub.frequency.value = 40;
+    sub.type = p.subType;
+    sub.frequency.value = p.subIdleFreq;
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.value = 320;
-    filter.Q.value = 5;
+    filter.frequency.value = p.filterFreq;
+    filter.Q.value = p.filterQ;
     const gain = ctx.createGain();
-    gain.gain.value = 0.04;
+    gain.gain.value = p.idleGain;
 
     osc.connect(filter);
     sub.connect(filter);
@@ -195,12 +298,13 @@ export class AudioEngine {
       this.engineGain.gain.setTargetAtTime(gain, t, 0.1);
     }
 
-    // Synth fallback: modulate frequency + cutoff + gain.
+    // Synth fallback: modulate frequency + cutoff + gain using engine profile.
     if (this.synthOsc && this.synthSubOsc && this.synthFilter && this.synthGain) {
-      this.synthOsc.frequency.setTargetAtTime(55 + ratio * 180, t, 0.08);
-      this.synthSubOsc.frequency.setTargetAtTime(35 + ratio * 90, t, 0.08);
-      this.synthFilter.frequency.setTargetAtTime(260 + ratio * 1100, t, 0.08);
-      this.synthGain.gain.setTargetAtTime(0.035 + ratio * 0.18, t, 0.08);
+      const p = ENGINE_PROFILES[this.engineSound];
+      this.synthOsc.frequency.setTargetAtTime(p.idleFreq + ratio * (p.maxFreq - p.idleFreq), t, p.smoothing);
+      this.synthSubOsc.frequency.setTargetAtTime(p.subIdleFreq + ratio * (p.subMaxFreq - p.subIdleFreq), t, p.smoothing);
+      this.synthFilter.frequency.setTargetAtTime(p.filterFreq + ratio * (p.filterMaxFreq - p.filterFreq), t, p.smoothing);
+      this.synthGain.gain.setTargetAtTime(p.idleGain + ratio * (p.maxGain - p.idleGain), t, p.smoothing);
     }
   }
 
@@ -224,6 +328,66 @@ export class AudioEngine {
 
   getHornMode(): HornMode {
     return this.hornMode;
+  }
+
+  setEngineSound(sound: EngineSound): void {
+    this.engineSound = sound;
+    // Restart synth engine with new profile if it's currently running
+    if (this.synthOsc) {
+      this.stopSynthEngine();
+      this.startSynthEngine();
+    }
+  }
+
+  getEngineSound(): EngineSound {
+    return this.engineSound;
+  }
+
+  /** Play a short engine rev preview (~1s) using the current engine profile. */
+  engineRevPreview(): void {
+    if (!this.ctx || !this.master) return;
+    const ctx = this.ctx;
+    const master = this.master;
+    const p = ENGINE_PROFILES[this.engineSound];
+    const t = ctx.currentTime;
+
+    const osc = ctx.createOscillator();
+    osc.type = p.oscType;
+    const sub = ctx.createOscillator();
+    sub.type = p.subType;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.Q.value = p.filterQ;
+    const gain = ctx.createGain();
+
+    // Idle → rev up → rev down → stop
+    osc.frequency.setValueAtTime(p.idleFreq, t);
+    osc.frequency.linearRampToValueAtTime(p.maxFreq * 0.8, t + 0.35);
+    osc.frequency.linearRampToValueAtTime(p.maxFreq, t + 0.5);
+    osc.frequency.linearRampToValueAtTime(p.idleFreq, t + 0.9);
+
+    sub.frequency.setValueAtTime(p.subIdleFreq, t);
+    sub.frequency.linearRampToValueAtTime(p.subMaxFreq * 0.8, t + 0.35);
+    sub.frequency.linearRampToValueAtTime(p.subMaxFreq, t + 0.5);
+    sub.frequency.linearRampToValueAtTime(p.subIdleFreq, t + 0.9);
+
+    filter.frequency.setValueAtTime(p.filterFreq, t);
+    filter.frequency.linearRampToValueAtTime(p.filterMaxFreq, t + 0.5);
+    filter.frequency.linearRampToValueAtTime(p.filterFreq, t + 0.9);
+
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(p.maxGain, t + 0.08);
+    gain.gain.setValueAtTime(p.maxGain, t + 0.5);
+    gain.gain.linearRampToValueAtTime(p.idleGain, t + 0.85);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.0);
+
+    osc.connect(filter);
+    sub.connect(filter);
+    filter.connect(gain).connect(master);
+    osc.start(t);
+    sub.start(t);
+    osc.stop(t + 1.05);
+    sub.stop(t + 1.05);
   }
 
   honk(): void {

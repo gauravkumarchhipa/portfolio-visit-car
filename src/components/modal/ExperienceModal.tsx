@@ -40,56 +40,67 @@ const ExperienceModal = ({ openModal, setOpenModal }: Props) => {
   const open = openModal === 'experience';
   return (
     <div
-      className={`fixed inset-0 z-[110] bg-zinc-950 overflow-y-auto transition-opacity duration-200 ${
+      className={`fixed inset-0 z-[110] bg-zinc-950 flex flex-col transition-opacity duration-200 ${
         open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
       }`}
     >
-      <div className="h-1 w-full bg-gradient-to-r from-blue-500 via-cyan-500 to-blue-500 sticky top-0 z-10" />
-
-      <div className="max-w-5xl mx-auto px-4 sm:px-8 py-6 sm:py-10">
-        <div className="flex items-start justify-between mb-8 gap-3">
-          <div>
-            <h2 className="text-xl sm:text-2xl font-semibold text-white tracking-tight flex items-center gap-2">
-              <iconify-icon icon="lucide:briefcase" width="22" class="text-blue-400"></iconify-icon>
-              Career Log
-            </h2>
-            <p className="text-[11px] sm:text-xs text-zinc-500 mt-1 uppercase tracking-wider">
-              Experience
-            </p>
-          </div>
-          <button
-            onClick={() => setOpenModal(null)}
-            className="text-zinc-500 hover:text-white transition-colors"
-            aria-label="Close"
-          >
-            <iconify-icon icon="lucide:x" width="22"></iconify-icon>
-          </button>
-        </div>
-
-        <div className="space-y-6 sm:space-y-8 pl-4">
-          {ROLES.map((role) => (
-            <div key={role.company} className="relative pl-6 border-l border-zinc-800">
-              <div
-                className={`absolute -left-1.5 top-1 w-3 h-3 rounded-full ring-4 ring-zinc-950 ${
-                  role.active ? 'bg-blue-500' : 'bg-zinc-700'
-                }`}
-              ></div>
-              <h3 className="text-base sm:text-lg font-semibold text-white">
-                {role.title}
-              </h3>
-              <p
-                className={`text-[11px] mt-0.5 uppercase tracking-wider font-mono ${
-                  role.active ? 'text-blue-400' : 'text-zinc-500'
-                }`}
-              >
-                {role.company} • {role.period}
+      {/* ─── Fixed Header ─── */}
+      <div className="shrink-0">
+        <div className="h-1 w-full bg-gradient-to-r from-blue-500 via-cyan-500 to-blue-500" />
+        <div className="max-w-5xl mx-auto px-4 sm:px-8 pt-6 pb-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-semibold text-white tracking-tight flex items-center gap-2">
+                <iconify-icon icon="lucide:briefcase" width="22" class="text-blue-400"></iconify-icon>
+                Career Log
+              </h2>
+              <p className="text-[11px] sm:text-xs text-zinc-500 mt-1 uppercase tracking-wider">
+                Experience
               </p>
-              <p className="text-sm text-zinc-400 mt-2 max-w-2xl">{role.description}</p>
             </div>
-          ))}
+            <button
+              onClick={() => setOpenModal(null)}
+              className="text-zinc-500 hover:text-white transition-colors"
+              aria-label="Close"
+            >
+              <iconify-icon icon="lucide:x" width="22"></iconify-icon>
+            </button>
+          </div>
         </div>
+        <div className="border-b border-white/5" />
+      </div>
 
-        <div className="mt-10 pt-6 border-t border-white/5 flex justify-end">
+      {/* ─── Scrollable Content ─── */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="max-w-5xl mx-auto px-4 sm:px-8 py-6 sm:py-8">
+          <div className="space-y-6 sm:space-y-8 pl-4">
+            {ROLES.map((role) => (
+              <div key={role.company} className="relative pl-6 border-l border-zinc-800">
+                <div
+                  className={`absolute -left-1.5 top-1 w-3 h-3 rounded-full ring-4 ring-zinc-950 ${
+                    role.active ? 'bg-blue-500' : 'bg-zinc-700'
+                  }`}
+                ></div>
+                <h3 className="text-base sm:text-lg font-semibold text-white">
+                  {role.title}
+                </h3>
+                <p
+                  className={`text-[11px] mt-0.5 uppercase tracking-wider font-mono ${
+                    role.active ? 'text-blue-400' : 'text-zinc-500'
+                  }`}
+                >
+                  {role.company} • {role.period}
+                </p>
+                <p className="text-sm text-zinc-400 mt-2 max-w-2xl">{role.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ─── Fixed Footer ─── */}
+      <div className="shrink-0 border-t border-white/5 bg-zinc-950">
+        <div className="max-w-5xl mx-auto px-4 sm:px-8 py-4 flex justify-end">
           <button
             type="button"
             onClick={() => setOpenModal(null)}

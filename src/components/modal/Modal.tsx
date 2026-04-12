@@ -4,8 +4,9 @@ import ABoutModal from './ABoutModal';
 import ExperienceModal from './ExperienceModal';
 import PortfolioModal from './PortfolioModal';
 import SkillsModal from './SkillsModal';
+import ContactModal from './ContactModal';
 
-type ModalId = 'about' | 'experience' | 'portfolio' | 'skills';
+type ModalId = 'about' | 'experience' | 'portfolio' | 'skills' | 'contact';
 
 type ModalProps = {
   openModal: ModalId | null;
@@ -24,6 +25,9 @@ const Modal = ({ openModal, setOpenModal }: ModalProps) => {
   }
   if (openModal === 'skills') {
     return <SkillsModal openModal={openModal} setOpenModal={setOpenModal} />;
+  }
+  if (openModal === 'contact') {
+    return <ContactModal openModal={openModal} setOpenModal={setOpenModal} />;
   }
   return null;
 };

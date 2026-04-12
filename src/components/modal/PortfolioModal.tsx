@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { Project, PROJECTS } from './projects';
 
 type Props = {
-  openModal: 'about' | 'experience' | 'portfolio' | 'skills' | null;
-  setOpenModal: (v: 'about' | 'experience' | 'portfolio' | 'skills' | null) => void;
+  openModal: 'about' | 'experience' | 'portfolio' | 'skills' | 'contact' | null;
+  setOpenModal: (v: 'about' | 'experience' | 'portfolio' | 'skills' | 'contact' | null) => void;
 };
 
 

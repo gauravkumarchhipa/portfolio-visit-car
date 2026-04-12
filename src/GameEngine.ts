@@ -90,6 +90,7 @@ export class GameEngine {
     { id: 'experience', x: 30, z: -30, color: 0x3b82f6 },
     { id: 'portfolio', x: 0, z: 40, color: 0x10b981 },
     { id: 'skills', x: -40, z: 30, color: 0xf59e0b },
+    { id: 'contact', x: 40, z: 30, color: 0xec4899 },
   ];
 
   private readonly zoneLocs: ZoneLoc[] = [
@@ -98,6 +99,7 @@ export class GameEngine {
     { x: 30, z: -30, r: 10 },
     { x: 0, z: 40, r: 10 },
     { x: -40, z: 30, r: 10 },
+    { x: 40, z: 30, r: 10 },
   ];
 
   private animationId: number | null = null;

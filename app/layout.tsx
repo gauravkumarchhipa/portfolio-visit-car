@@ -10,7 +10,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Gaurav Chhipa | 3D Interactive Portfolio',
+  title: 'Gaurav Chhipa | 4D Interactive Portfolio',
   description: 'MERN Stack Developer & Senior Engineer — explore my work in a 3D driving experience.',
   icons: {
     icon: '/icon.svg',
